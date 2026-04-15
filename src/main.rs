@@ -50,7 +50,30 @@ fn args_mod(args: &[String], tasks: &mut Vec<Task>) {
 				
 				tasks.push(new_task);
 			}
-		}
+		},
+		"delete" => {
+			if args.len() < 3 {
+				println!("Ошибка: введите номер удаляемой заметки после 'delete'");
+			} else {
+				let task_id = args[2].parse::<u32>();
+
+				if let Ok(target_id) = task_id {
+					let initial_len = tasks.len();
+				
+					tasks.retain(|t| t.id != target_id);
+
+					if tasks.len() < initial_len {
+						println!("Задача #{} удалена.", target_id);
+					} else {
+						println!("Задача с ID {} не найдена.", target_id);
+					}
+					
+				}
+				else {
+					println!("Ошибка: '{}' не является числом.", args[2]);
+				}
+			}
+		},
 		"list" => {
 			println!("Список всех задач");
 			// Add show logic later
@@ -71,10 +94,11 @@ fn args_mod(args: &[String], tasks: &mut Vec<Task>) {
 			}
 		},
 		"help" => {
-			println!("add 'task text'- добавление новой задачи с заголовком 'task text'");
-			println!("list - добавление новой задачи с заголовком 'task text'");
-			println!("--done 1  - установки отметки 'выполнено' для задачи с номером  1");
-			println!("--help - отображение справки по работе утилиты");
+			println!("-- add 'task text'- добавление новой задачи с заголовком 'task text'");
+			println!("-- list - добавление новой задачи с заголовком 'task text'");
+			println!("-- delete 1 - удаление задачи по номеру");
+			println!("-- done 1  - установки отметки 'выполнено' для задачи с номером  1");
+			println!("-- help - отображение справки по работе утилиты");
 		},
 		_ => {
 			println!("Неизвестная команда {}", command);
@@ -104,16 +128,44 @@ fn active_mod(tasks: &mut Vec<Task>) {
                     let id = (tasks.len() + 1) as u32;
                     tasks.push(Task { id, title: parts[1].to_string(), completed: false });
                     println!("Задача добавлена!");
-                    save_tasks(&tasks);
+                    save_tasks(tasks);
                     println!("Список задач сохранен!");
                 }
-            }
+            },
             "list" => {
                 for t in tasks.iter() { // ИСПОЛЬЗУЕМ ССЫЛКУ &, чтобы не потерять список
                     let status = if t.completed { "✅" } else { "⏳" };
                     println!("{}. [{}] {}", t.id, status, t.title);
                 }
-            }
+            },
+            "delete" => {
+				if parts.len() < 2 {
+					println!("Ошибка: не указан номер удаляемой задачи");
+				} else {
+					let task_id = parts[1].parse::<u32>();
+				
+	            	if let Ok(target_id) = task_id {
+        				let initial_len = tasks.len();
+	            					
+	            		tasks.retain(|t| t.id != target_id);
+	            	
+	            		if tasks.len() < initial_len {
+	            			println!("Задача #{} удалена.", target_id);
+	            		} else {
+	            			println!("Задача с ID {} не найдена.", target_id);
+	            		}	
+	            	} else {
+	            		println!("Ошибка: '{}' не является числом.", parts[1]);
+	            	}	
+				}
+            },
+            "help" => {
+            	println!("add 'task text'- добавление новой задачи с заголовком 'task text'");
+            	println!("list - добавление новой задачи с заголовком 'task text'");
+            	println!("delete 1 - удаление задачи по номеру");
+            	println!("done 1  - установки отметки 'выполнено' для задачи с номером  1");
+            	println!("help - отображение справки по работе утилиты");
+            },
             "exit" => break, // Выход из цикла loop
             _ => println!("Неизвестная команда. Попробуйте 'add', 'list' или 'exit'."),
         }

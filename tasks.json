@@ -1,7 +1,12 @@
 [
   {
+    "id": 2,
+    "title": "Need to fix tasks numeration",
+    "completed": false
+  },
+  {
     "id": 1,
-    "title": "Dont forget to learn git commands with Gemini",
+    "title": "New task after delete task number 1",
     "completed": false
   }
 ]
