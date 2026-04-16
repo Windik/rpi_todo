@@ -1,95 +1,72 @@
+mod tasks;
+
 use std::env; // environment module
 use std::io;
 use std::io::{BufReader, Write};
 use std::fs::File;
-use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Task {
-	id: u32,
-	title: String,
-	completed: bool,
-}
+use tasks::TodoList;
+
 
 const FILE_PATH: &str = "tasks.json";
 
-fn save_tasks(tasks: &Vec<Task>){
-	let file = File::create(FILE_PATH).expect("Не удалось создать файл!");
-	serde_json::to_writer_pretty(file, tasks).expect("Ошибка при записи JSON");
+fn save_tasks(list: &TodoList){
+	let file = File::create(FILE_PATH).expect("Failed to create file");
+	serde_json::to_writer_pretty(file, &list.tasks).expect("Failed to write JSON");
 }
 
-fn load_tasks() -> Vec<Task> {
+fn load_tasks() -> TodoList {
 	let file = File::open(FILE_PATH);
 
 	match file {
 		Ok(f) => {
 			let reader = BufReader::new(f);
 
-			serde_json::from_reader(reader).unwrap_or_else(|_| Vec::new())
+			let tasks_vec  = serde_json::from_reader(reader).unwrap_or_else(|_| Vec::new());
+
+			TodoList { tasks: tasks_vec }
 		},
-		Err(_) => Vec::new(),
+		Err(_) => TodoList::new(),
 	}
 }
 
-fn args_mod(args: &[String], tasks: &mut Vec<Task>) {
+fn args_mod(args: &[String], list: &mut TodoList) {
+	if args.len() < 2 { return; }
 	let command = &args[1];
 	
 	match command.as_str() {
 		"add" => {
-			if args.len() < 3 {
-				println!("Ошибка: введите текст задачи после 'add'");
-			} else {
-				let task_text = &args[2];
-				println!("Добавляем задачу: {}", task_text);
-				// Add save logic (to vec right now)
-				let new_task: Task = Task {
-					id: tasks.len() as u32,
-					title: String::from(task_text),
-					completed: false,
-				};
-				
-				tasks.push(new_task);
+			if let Some(title) = args.get(2) {
+				list.add_task(title.to_string());
+				println!("Task added!");
 			}
 		},
 		"delete" => {
-			if args.len() < 3 {
-				println!("Ошибка: введите номер удаляемой заметки после 'delete'");
-			} else {
-				let task_id = args[2].parse::<u32>();
-
-				if let Ok(target_id) = task_id {
-					let initial_len = tasks.len();
-				
-					tasks.retain(|t| t.id != target_id);
-
-					if tasks.len() < initial_len {
-						println!("Задача #{} удалена.", target_id);
+			if let Some(id_str) = args.get(2) {
+				if let Ok(id) = id_str.parse::<u32>() {
+					if list.delete_task(id) {
+						println!("Task #{} deleted.", id);
 					} else {
-						println!("Задача с ID {} не найдена.", target_id);
+						println!("Task not found.");
 					}
-					
-				}
-				else {
-					println!("Ошибка: '{}' не является числом.", args[2]);
 				}
 			}
 		},
 		"list" => {
-			println!("Список всех задач");
-			// Add show logic later
-			for i in tasks.iter() {
-				println!("Задача #{} - {}, Статус - {}", i.id, i.title, i.completed);
+			for t in &list.tasks {
+				let status = if t.completed { "✅" } else { "⏳" };
+
+				println!("{}. [{}] {}", t.id, status, t.title);
 			}
 		},
 		"done" => {
 			if let Some(id_str) = args.get(2) {
-				if let Ok(target_id) = id_str.parse::<u32>() {
-				    // Используем iter_mut() для изменения элементов
-				    for task in tasks.iter_mut() {
-				        if task.id == target_id {
-				            task.completed = true;
-				        }
-				    }
+				if let Ok(id) = id_str.parse::<u32>() {
+					if list.complete_task(id) {
+						println!("Task #{} completed.", id);
+					} else {
+						println!("Task not found.");
+					}
 				}
 			}
 		},
@@ -101,63 +78,61 @@ fn args_mod(args: &[String], tasks: &mut Vec<Task>) {
 			println!("-- help - отображение справки по работе утилиты");
 		},
 		_ => {
-			println!("Неизвестная команда {}", command);
+			println!("Unknown command ");
 		}
 	}
 }
 
-fn active_mod(tasks: &mut Vec<Task>) {
+fn active_mod(list: &mut TodoList) {
+	println!("Interactive mode. Type 'exit' to quit.");
+	
 	loop {
         print!("> "); // Красивый пригласительный знак
         io::stdout().flush().unwrap(); // Чтобы '>' отобразился сразу
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Ошибка чтения");
+        io::stdin().read_line(&mut input).unwrap();
         
         let input = input.trim(); // Убираем лишние пробелы и символ новой строки
         
         // Разделяем ввод на команду и аргументы
+        if input == "exit" { break; }
         let parts: Vec<&str> = input.splitn(2, ' ').collect();
-        let command = parts[0];
 
-        match command {
+        match parts[0] {
             "add" => {
-                if parts.len() < 2 {
-                    println!("Ошибка: напишите текст задачи");
-                } else {
-                    let id = (tasks.len() + 1) as u32;
-                    tasks.push(Task { id, title: parts[1].to_string(), completed: false });
-                    println!("Задача добавлена!");
-                    save_tasks(tasks);
-                    println!("Список задач сохранен!");
+                if let Some(title) = parts.get(1) {
+                	list.add_task(title.to_string());
+                	save_tasks(list);
+                	println!("Added and saved.");
                 }
             },
             "list" => {
-                for t in tasks.iter() { // ИСПОЛЬЗУЕМ ССЫЛКУ &, чтобы не потерять список
-                    let status = if t.completed { "✅" } else { "⏳" };
-                    println!("{}. [{}] {}", t.id, status, t.title);
+                for t in &list.tasks {
+                    println!("{}. {}", t.id, t.title);
                 }
             },
             "delete" => {
-				if parts.len() < 2 {
-					println!("Ошибка: не указан номер удаляемой задачи");
-				} else {
-					let task_id = parts[1].parse::<u32>();
-				
-	            	if let Ok(target_id) = task_id {
-        				let initial_len = tasks.len();
-	            					
-	            		tasks.retain(|t| t.id != target_id);
-	            	
-	            		if tasks.len() < initial_len {
-	            			println!("Задача #{} удалена.", target_id);
-	            		} else {
-	            			println!("Задача с ID {} не найдена.", target_id);
-	            		}	
-	            	} else {
-	            		println!("Ошибка: '{}' не является числом.", parts[1]);
-	            	}	
+				if let Some(id_str) = parts.get(1) {
+					if let Ok(id) = id_str.parse::<u32>() {
+						if list.delete_task(id) {
+							save_tasks(list);
+							println!("Deleted.");
+						}
+					}
 				}
+            },
+            "done" => {
+            	if let Some(id_str) = parts.get(1) {
+            		if let Ok(id) = id_str.parse::<u32>() {
+            			if list.complete_task(id) {
+            				save_tasks(list);
+            				println!("Task #{} completed.", id);
+            			} else {
+            				println!("Task not found.");
+            			}
+            		}
+            	}	
             },
             "help" => {
             	println!("add 'task text'- добавление новой задачи с заголовком 'task text'");
@@ -167,21 +142,21 @@ fn active_mod(tasks: &mut Vec<Task>) {
             	println!("help - отображение справки по работе утилиты");
             },
             "exit" => break, // Выход из цикла loop
-            _ => println!("Неизвестная команда. Попробуйте 'add', 'list' или 'exit'."),
+            _ => println!("Unknown command. Try to use 'add', 'list' or 'exit'.")
         }
     }
 }
 
 fn main() {
 	let args: Vec<String> = env::args().collect();
-	let mut tasks: Vec<Task> = load_tasks();
+	let mut list = load_tasks();
 
 	if args.len() > 1 {
-		args_mod(&args, &mut tasks);
-		save_tasks(&tasks);
+		args_mod(&args, &mut list);
+		save_tasks(&list);
 	} 
 	else {
-		active_mod(&mut tasks);
+		active_mod(&mut list);
 	}
 
 	

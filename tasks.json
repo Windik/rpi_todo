@@ -1,12 +1,22 @@
 [
   {
     "id": 2,
-    "title": "Need to fix tasks numeration",
+    "title": "Need to check new logic",
     "completed": false
   },
   {
-    "id": 1,
-    "title": "New task after delete task number 1",
+    "id": 3,
+    "title": "Musth be number three",
+    "completed": false
+  },
+  {
+    "id": 4,
+    "title": "This",
+    "completed": false
+  },
+  {
+    "id": 5,
+    "title": "This is number five",
     "completed": false
   }
 ]
