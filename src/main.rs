@@ -1,10 +1,9 @@
-mod tasks;
-
 use std::env; // environment module
 use std::io;
 use std::io::{BufReader, Write};
 use std::fs::File;
 
+use rpi_todo::tasks;
 use tasks::TodoList;
 
 

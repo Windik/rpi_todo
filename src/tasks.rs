@@ -12,6 +12,14 @@ pub struct TodoList {
 }
 
 impl TodoList {
+	/// Create new TodoList
+	///
+	/// # Examples
+	/// ```
+	/// use rpi_todo::tasks::TodoList;
+	/// let list = TodoList::new();
+	/// assert_eq!(list.tasks.len(), 0);
+	/// ```
 	pub fn new() -> Self {
 		TodoList { tasks: Vec::new() }
 	}
