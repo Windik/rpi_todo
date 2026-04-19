@@ -9,9 +9,10 @@ use tasks::TodoList;
 
 const FILE_PATH: &str = "tasks.json";
 
-fn save_tasks(list: &TodoList){
-	let file = File::create(FILE_PATH).expect("Failed to create file");
-	serde_json::to_writer_pretty(file, &list.tasks).expect("Failed to write JSON");
+fn save_tasks(list: &TodoList) -> io::Result<()> {
+	let file = File::create(FILE_PATH)?;
+	serde_json::to_writer_pretty(file, &list.tasks)?;
+	Ok(())
 }
 
 fn load_tasks() -> TodoList {
@@ -29,56 +30,88 @@ fn load_tasks() -> TodoList {
 	}
 }
 
-fn args_mod(args: &[String], list: &mut TodoList) {
-	if args.len() < 2 { return; }
-	let command = &args[1];
-	
-	match command.as_str() {
+fn handle_command(command: &str, arg: Option<&str>, list: &mut TodoList) -> bool {
+	match command {
 		"add" => {
-			if let Some(title) = args.get(2) {
+			if let Some(title) = arg {
 				list.add_task(title.to_string());
 				println!("Task added!");
-			}
-		},
-		"delete" => {
-			if let Some(id_str) = args.get(2) {
-				if let Ok(id) = id_str.parse::<u32>() {
-					if list.delete_task(id) {
-						println!("Task #{} deleted.", id);
-					} else {
-						println!("Task not found.");
-					}
-				}
+				
+				true
+			} else {
+				println!("Error: 'add' requires a task title.");
+				
+				false
 			}
 		},
 		"list" => {
-			for t in &list.tasks {
-				let status = if t.completed { "✅" } else { "⏳" };
-
-				println!("{}. [{}] {}", t.id, status, t.title);
+			if list.tasks.is_empty() {
+				println!("Your list is empty.");
+			} else  {
+				for t in  &list.tasks {
+					let status = if t.completed { "✅" } else { "⏳" };
+            		println!("{}. [{}] {}", t.id, status, t.title);
+				}
 			}
+			
+			false
 		},
-		"done" => {
-			if let Some(id_str) = args.get(2) {
+		"delete" => {
+			if let Some(id_str) = arg {
 				if let Ok(id) = id_str.parse::<u32>() {
-					if list.complete_task(id) {
-						println!("Task #{} completed.", id);
+					if list.delete_task(id){
+						println!("Task #{} deleted.", id);
+						return true;
 					} else {
 						println!("Task not found.");
 					}
 				}
 			}
+
+			false
+		},
+		"done" => {
+			if let Some(id_str) = arg {
+				if let Ok(id) = id_str.parse::<u32>() {
+					if list.complete_task(id) {
+						println!("Task #{} completed.", id);
+						return true;
+					} else {
+						println!("Task not found.");
+					}
+				}
+			}
+
+			false
 		},
 		"help" => {
-			println!("-- add 'task text'- добавление новой задачи с заголовком 'task text'");
-			println!("-- list - добавление новой задачи с заголовком 'task text'");
-			println!("-- delete 1 - удаление задачи по номеру");
-			println!("-- done 1  - установки отметки 'выполнено' для задачи с номером  1");
-			println!("-- help - отображение справки по работе утилиты");
+			print_help();
+
+			false
 		},
 		_ => {
-			println!("Unknown command ");
-		}
+			println!("Unknown command. Try 'help' for info.");
+
+			false
+		}	
+	}
+}
+
+fn print_help() {
+	println!("Available commands:");
+    println!("  add <text>    - Add a new task");
+    println!("  list          - Show all tasks");
+    println!("  delete <id>   - Remove task by ID");
+    println!("  done <id>     - Mark task as completed");
+    println!("  help          - Show this help");
+}
+
+fn args_mod(args: &[String], list: &mut TodoList) {
+	let command = &args[1];
+	let arg = args.get(2).map(|s| s.as_str());
+
+	if handle_command(command, arg, list) {
+		let _ = save_tasks(list);
 	}
 }
 
@@ -93,55 +126,17 @@ fn active_mod(list: &mut TodoList) {
         io::stdin().read_line(&mut input).unwrap();
         
         let input = input.trim(); // Убираем лишние пробелы и символ новой строки
+
+        if input.is_empty() { continue; }
         
         // Разделяем ввод на команду и аргументы
         if input == "exit" { break; }
         let parts: Vec<&str> = input.splitn(2, ' ').collect();
+        let command = parts[0];
+        let arg = parts.get(1).copied();
 
-        match parts[0] {
-            "add" => {
-                if let Some(title) = parts.get(1) {
-                	list.add_task(title.to_string());
-                	save_tasks(list);
-                	println!("Added and saved.");
-                }
-            },
-            "list" => {
-                for t in &list.tasks {
-                    println!("{}. {}", t.id, t.title);
-                }
-            },
-            "delete" => {
-				if let Some(id_str) = parts.get(1) {
-					if let Ok(id) = id_str.parse::<u32>() {
-						if list.delete_task(id) {
-							save_tasks(list);
-							println!("Deleted.");
-						}
-					}
-				}
-            },
-            "done" => {
-            	if let Some(id_str) = parts.get(1) {
-            		if let Ok(id) = id_str.parse::<u32>() {
-            			if list.complete_task(id) {
-            				save_tasks(list);
-            				println!("Task #{} completed.", id);
-            			} else {
-            				println!("Task not found.");
-            			}
-            		}
-            	}	
-            },
-            "help" => {
-            	println!("add 'task text'- добавление новой задачи с заголовком 'task text'");
-            	println!("list - добавление новой задачи с заголовком 'task text'");
-            	println!("delete 1 - удаление задачи по номеру");
-            	println!("done 1  - установки отметки 'выполнено' для задачи с номером  1");
-            	println!("help - отображение справки по работе утилиты");
-            },
-            "exit" => break, // Выход из цикла loop
-            _ => println!("Unknown command. Try to use 'add', 'list' or 'exit'.")
+        if handle_command(command, arg, list) {
+        	let _ = save_tasks(list);
         }
     }
 }
@@ -152,11 +147,8 @@ fn main() {
 
 	if args.len() > 1 {
 		args_mod(&args, &mut list);
-		save_tasks(&list);
 	} 
 	else {
 		active_mod(&mut list);
 	}
-
-	
 }
