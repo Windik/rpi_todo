@@ -2,7 +2,7 @@
   {
     "id": 2,
     "title": "Need to check new logic",
-    "completed": false
+    "completed": true
   },
   {
     "id": 3,
@@ -10,13 +10,13 @@
     "completed": false
   },
   {
-    "id": 4,
-    "title": "This",
+    "id": 5,
+    "title": "This is number five",
     "completed": false
   },
   {
-    "id": 5,
-    "title": "This is number five",
+    "id": 6,
+    "title": "New task for me",
     "completed": false
   }
 ]

@@ -1,11 +1,10 @@
-use std::env; // environment module
 use std::io;
 use std::io::{BufReader, Write};
 use std::fs::File;
 
 use rpi_todo::tasks;
 use tasks::TodoList;
-
+use clap::{Parser, Subcommand};
 
 const FILE_PATH: &str = "tasks.json";
 
@@ -30,21 +29,34 @@ fn load_tasks() -> TodoList {
 	}
 }
 
-fn handle_command(command: &str, arg: Option<&str>, list: &mut TodoList) -> bool {
+#[derive(Parser)]
+#[command(name = "rpi_todo")]
+#[command(about = "A simple Todo List CLI in Rust", long_about = None)]
+struct Cli {
+	#[command(subcommand)]
+	command: Option<Commands>,
+}
+
+#[derive(Subcommand, Clone)]
+enum Commands {
+	/// Add a new task
+	Add { title: String },
+	/// List all tasks
+	List,
+	/// Mark a task as done
+	Done { id: u32 },
+	/// Delete a task
+	Delete { id: u32 },
+}
+
+fn handle_command(command: Commands, list: &mut TodoList) -> bool {
 	match command {
-		"add" => {
-			if let Some(title) = arg {
-				list.add_task(title.to_string());
-				println!("Task added!");
-				
-				true
-			} else {
-				println!("Error: 'add' requires a task title.");
-				
-				false
-			}
+		Commands::Add { title } => {
+			list.add_task(title);
+			println!("Task added!");
+			true
 		},
-		"list" => {
+		Commands::List => {
 			if list.tasks.is_empty() {
 				println!("Your list is empty.");
 			} else  {
@@ -53,47 +65,26 @@ fn handle_command(command: &str, arg: Option<&str>, list: &mut TodoList) -> bool
             		println!("{}. [{}] {}", t.id, status, t.title);
 				}
 			}
-			
 			false
 		},
-		"delete" => {
-			if let Some(id_str) = arg {
-				if let Ok(id) = id_str.parse::<u32>() {
-					if list.delete_task(id){
-						println!("Task #{} deleted.", id);
-						return true;
-					} else {
-						println!("Task not found.");
-					}
-				}
+		Commands::Delete { id } => {
+			if list.delete_task(id) {
+				println!("Task #{} deleted.", id);
+				true
+			} else {
+				println!("Task not found.");
+				false
 			}
-
-			false
 		},
-		"done" => {
-			if let Some(id_str) = arg {
-				if let Ok(id) = id_str.parse::<u32>() {
-					if list.complete_task(id) {
-						println!("Task #{} completed.", id);
-						return true;
-					} else {
-						println!("Task not found.");
-					}
-				}
+		Commands::Done { id } => {
+			if list.complete_task(id) {
+				println!("Task #{} completed.", id);
+				true
+			} else {
+				println!("Task not found.");
+				false
 			}
-
-			false
 		},
-		"help" => {
-			print_help();
-
-			false
-		},
-		_ => {
-			println!("Unknown command. Try 'help' for info.");
-
-			false
-		}	
 	}
 }
 
@@ -106,17 +97,8 @@ fn print_help() {
     println!("  help          - Show this help");
 }
 
-fn args_mod(args: &[String], list: &mut TodoList) {
-	let command = &args[1];
-	let arg = args.get(2).map(|s| s.as_str());
-
-	if handle_command(command, arg, list) {
-		let _ = save_tasks(list);
-	}
-}
-
 fn active_mod(list: &mut TodoList) {
-	println!("Interactive mode. Type 'exit' to quit.");
+	println!("Interactive mode. Type 'exit' to quit or 'help' for commands.");
 	
 	loop {
         print!("> "); // Красивый пригласительный знак
@@ -128,27 +110,46 @@ fn active_mod(list: &mut TodoList) {
         let input = input.trim(); // Убираем лишние пробелы и символ новой строки
 
         if input.is_empty() { continue; }
-        
-        // Разделяем ввод на команду и аргументы
         if input == "exit" { break; }
+        
         let parts: Vec<&str> = input.splitn(2, ' ').collect();
-        let command = parts[0];
-        let arg = parts.get(1).copied();
+        let cmd_part = parts[0];
+        let arg_part = parts.get(1).copied();
 
-        if handle_command(command, arg, list) {
-        	let _ = save_tasks(list);
-        }
+        let command_to_run = match cmd_part {
+        	"add" => arg_part.map(|t| Commands::Add { title: t.to_string() }),
+        	"list" => Some(Commands::List),
+        	"done" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Done { id })),
+        	"delete" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Delete { id })),
+        	"help" => { print_help(); None },
+        	_ => { println!("Unknown command:{}. Type 'help' for info.", cmd_part); None }
+        };
+
+		if let Some(cmd) = command_to_run {
+			if handle_command(cmd, list) {
+				if let Err(e) = save_tasks(list) {
+					eprintln!("Error saving tasks: {}", e);
+				}
+			}
+		} else if cmd_part != "help" {
+			println!("Invalid arguments for '{}'.", cmd_part);
+		}
     }
 }
 
-fn main() {
-	let args: Vec<String> = env::args().collect();
+fn main() -> io::Result<()> {
+	let cli = Cli::parse();
 	let mut list = load_tasks();
 
-	if args.len() > 1 {
-		args_mod(&args, &mut list);
-	} 
-	else {
-		active_mod(&mut list);
+	match cli.command {
+		Some(cmd) => {
+			if handle_command(cmd, &mut list) {
+				save_tasks(&list)?;
+			}
+		}
+
+		None => active_mod(&mut list),
 	}
+
+	Ok(())
 }
