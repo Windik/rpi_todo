@@ -14,19 +14,22 @@ fn save_tasks(list: &TodoList) -> io::Result<()> {
 	Ok(())
 }
 
-fn load_tasks() -> TodoList {
+fn load_tasks() -> io::Result<TodoList> {
 	let file = File::open(FILE_PATH);
 
-	match file {
-		Ok(f) => {
-			let reader = BufReader::new(f);
+	let f = match file {
+		Ok(f) => f,
+		Err(e) if e.kind() == io::ErrorKind::NotFound => {
+			return Ok(TodoList::new());
+		}
+		Err(e) => return Err(e),
+	};
+		
+	let reader = BufReader::new(f);
 
-			let tasks_vec  = serde_json::from_reader(reader).unwrap_or_else(|_| Vec::new());
+	let tasks_vec  = serde_json::from_reader(reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-			TodoList { tasks: tasks_vec }
-		},
-		Err(_) => TodoList::new(),
-	}
+	Ok(TodoList { tasks: tasks_vec })
 }
 
 #[derive(Parser)]
@@ -102,7 +105,7 @@ fn active_mod(list: &mut TodoList) {
 	
 	loop {
         print!("> "); // Красивый пригласительный знак
-        io::stdout().flush().unwrap(); // Чтобы '>' отобразился сразу
+        let _ = io::stdout().flush(); // Чтобы '>' отобразился сразу
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
@@ -139,7 +142,7 @@ fn active_mod(list: &mut TodoList) {
 
 fn main() -> io::Result<()> {
 	let cli = Cli::parse();
-	let mut list = load_tasks();
+	let mut list = load_tasks()?;
 
 	match cli.command {
 		Some(cmd) => {
