@@ -6,6 +6,8 @@ use rpi_todo::tasks;
 use tasks::TodoList;
 use clap::{Parser, Subcommand};
 
+use colored::*;
+
 const FILE_PATH: &str = "tasks.json";
 
 fn save_tasks(list: &TodoList) -> io::Result<()> {
@@ -64,8 +66,8 @@ fn handle_command(command: Commands, list: &mut TodoList) -> bool {
 				println!("Your list is empty.");
 			} else  {
 				for t in  &list.tasks {
-					let status = if t.completed { "✅" } else { "⏳" };
-            		println!("{}. [{}] {}", t.id, status, t.title);
+					let status = if t.completed { "✅ Done".green() } else { "⏳Pending".yellow() };
+            		println!("{}. [{}] {}", t.id, status, t.title.bold());
 				}
 			}
 			false
@@ -125,17 +127,17 @@ fn active_mod(list: &mut TodoList) {
         	"done" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Done { id })),
         	"delete" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Delete { id })),
         	"help" => { print_help(); None },
-        	_ => { println!("Unknown command:{}. Type 'help' for info.", cmd_part); None }
+        	_ => { println!("{}", format!("Unknown command:{}. Type 'help' for info.", cmd_part).red()); None }
         };
 
 		if let Some(cmd) = command_to_run {
 			if handle_command(cmd, list) {
 				if let Err(e) = save_tasks(list) {
-					eprintln!("Error saving tasks: {}", e);
+					eprintln!("{}", format!("Error saving tasks: {}", e).red());
 				}
 			}
 		} else if cmd_part != "help" {
-			println!("Invalid arguments for '{}'.", cmd_part);
+			println!("{}", format!("Invalid arguments for '{}'.", cmd_part).red());
 		}
     }
 }
