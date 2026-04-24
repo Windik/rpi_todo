@@ -1,22 +1,14 @@
 [
   {
+    "id": 1,
+    "title": "\"First task after adding new date field\"",
+    "completed": true,
+    "created_at": "2026-04-24T08:39:56.457181502+02:00"
+  },
+  {
     "id": 2,
-    "title": "Need to check new logic",
-    "completed": true
-  },
-  {
-    "id": 3,
-    "title": "Musth be number three",
-    "completed": false
-  },
-  {
-    "id": 5,
-    "title": "This is number five",
-    "completed": false
-  },
-  {
-    "id": 6,
-    "title": "New task for me",
-    "completed": false
+    "title": "Second Task",
+    "completed": false,
+    "created_at": "2026-04-24T08:40:19.073283463+02:00"
   }
 ]

@@ -67,7 +67,8 @@ fn handle_command(command: Commands, list: &mut TodoList) -> bool {
 			} else  {
 				for t in  &list.tasks {
 					let status = if t.completed { "✅ Done".green() } else { "⏳Pending".yellow() };
-            		println!("{}. [{}] {}", t.id, status, t.title.bold());
+					let task_date = t.created_at.format("%Y-%m-%d %H:%M").to_string().dimmed();
+            		println!("{}. {}  - [{}] {}", t.id, task_date, status, t.title.bold());
 				}
 			}
 			false

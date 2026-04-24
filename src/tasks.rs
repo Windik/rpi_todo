@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -5,6 +6,7 @@ pub struct Task {
 	pub id: u32,
 	pub title: String,
 	pub completed: bool,
+	pub created_at: DateTime<Local>,
 }
 
 pub struct TodoList {
@@ -37,7 +39,14 @@ impl TodoList {
 	pub fn add_task(&mut self, title: String) {
 		let id = self.tasks.last().map_or(1, |t| t.id + 1);
 
-		self.tasks.push(Task { id, title, completed: false });
+		let new_task = Task {
+			id,
+			title,
+			completed: false,
+			created_at: Local::now(),
+		};
+
+		self.tasks.push(new_task);
 	}
 
 	/// Delete task from TodoList by id
