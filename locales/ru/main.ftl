@@ -1,0 +1,10 @@
+active-mod-greeting = Добро пожаловать в rpi_todo! Введите команду или 'exit' для выхода.
+task-added = Задача "{$title}" добавлена!
+task-deleted = Задача #{$id} удалена.
+task-completed = Задача #{$id} выполнена!
+list-empty = Ваш список дел пуст.
+status-done = ✅ Готово
+status-pending = ⏳ В процессе
+error-not-found = Задача не найдена.
+error-unknown-cmd = Неизвестная команда: {$cmd}.
+help-text = Доступные команды: add, list, done, delete, exit.

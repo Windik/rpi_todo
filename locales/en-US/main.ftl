@@ -1,0 +1,10 @@
+active-mod-greeting = Welcome to rpi_todo! Enter a command or 'exit' to quit.
+task-added = Task "{$title}" added!
+task-deleted = Task #{$id} deleted.
+task-completed = Task #{$id} completed!
+list-empty = Your to-do list is empty.
+status-done = ✅ Done
+status-pending = ⏳ Pending
+error-not-found = Task not found.
+error-unknown-cmd = Unknown command: {$cmd}.
+help-text = Available commands: add, list, done, delete, exit.
