@@ -1,0 +1,12 @@
+active-mod-greeting = rpi_todo へようこそ！コマンドを入力するか、'exit' で終了します。
+task-added = タスク「{$title}」が追加されました！
+task-deleted = タスク #{$id} が削除されました。
+task-completed = タスク #{$id} が完了しました！
+list-empty = タスクリストは空です。
+status-done = ✅ 完了
+status-pending = ⏳ 保留中
+error-not-found = タスクが見つかりません。
+error-unknown-cmd = 不明なコマンド: {$cmd}。
+help-text = 利用可能なコマンド: add, list, done, delete, exit.
+lang-changed = 言語が {$lang} に変更されました。
+restart-hint = 変更を適用するには、プログラムを再起動してください。

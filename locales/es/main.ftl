@@ -1,0 +1,12 @@
+active-mod-greeting = ¡Bienvenido a rpi_todo! Ingrese un comando o 'exit' para salir.
+task-added = ¡Tarea "{$title}" añadida!
+task-deleted = Tarea #{$id} eliminada.
+task-completed = ¡Tarea #{$id} completada!
+list-empty = Tu lista de tareas está vacía.
+status-done = ✅ Hecho
+status-pending = ⏳ Pendiente
+error-not-found = Tarea no encontrada.
+error-unknown-cmd = Comando desconocido: {$cmd}.
+help-text = Comandos disponibles: add, list, done, delete, exit.
+lang-changed = Idioma cambiado a {$lang}.
+restart-hint = Por favor, reinicie el programa para aplicar los cambios.
