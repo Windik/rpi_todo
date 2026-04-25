@@ -8,3 +8,6 @@ status-pending = ⏳ В процессе
 error-not-found = Задача не найдена.
 error-unknown-cmd = Неизвестная команда: {$cmd}.
 help-text = Доступные команды: add, list, done, delete, exit.
+lang-changed = Язык изменен на {$lang}.
+restart-hint = Пожалуйста, перезапустите программу для применения изменений.
+error-lang-not-found = Ошибка: Локализация для языка "{$lang}" не найдена в папке locales.

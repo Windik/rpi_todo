@@ -13,6 +13,7 @@ fluent = "0.16"
 fluent-templates = "0.8"
 once_cell = "1.18"
 unic-langid = "0.9"
+confy = "0.6"
 
 [[bin]]
 name = "rpi_todo"

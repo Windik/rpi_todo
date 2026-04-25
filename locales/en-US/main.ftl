@@ -8,3 +8,6 @@ status-pending = ⏳ Pending
 error-not-found = Task not found.
 error-unknown-cmd = Unknown command: {$cmd}.
 help-text = Available commands: add, list, done, delete, exit.
+lang-changed = Language changed to {$lang}.
+restart-hint = Please restart the program to apply changes.
+error-lang-not-found = Error: Localization for "{$lang}" not found in locales folder.

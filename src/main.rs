@@ -1,15 +1,31 @@
 use std::io;
 use std::io::{BufReader, Write};
+use std::fs;
 use std::fs::File;
 
 use rpi_todo::tasks;
-use tasks::{TodoList};
+use tasks::TodoList;
 use clap::{Parser, Subcommand};
 use colored::*;
 use fluent_templates::static_loader;
+use serde::{Serialize, Deserialize};
 
 const FILE_PATH: &str = "tasks.json";
 
+// ==== Config block ====
+#[derive(Serialize, Deserialize, Debug)]
+struct AppConfig {
+	version: u8,
+	language: String,
+}
+
+impl Default for AppConfig {
+	fn default() -> Self {
+		Self { version: 1, language:"en-US".into() }
+	}
+}
+
+// ==== l18n block ==== 
 static_loader! {
     static LOCALES = {
         locales: "locales",
@@ -17,6 +33,7 @@ static_loader! {
     };
 }
 
+// ==== Translator ====
 pub struct Translator {
     pub lang: unic_langid::LanguageIdentifier,
 }
@@ -36,7 +53,6 @@ impl Translator {
                 .unwrap_or_else(|| text_id.to_string());
         }
 
-        // Версия 0.8 ожидает HashMap с FluentValue
         let mut fluent_args = HashMap::new();
         for (key, value) in args {
             fluent_args.insert(key.to_string(), (*value).into());
@@ -47,8 +63,14 @@ impl Translator {
     }
 }
 
+fn locale_exists(lang: &str) -> bool {
+	let path = format!("locales/{}", lang);
 
-// ==== save tasks data block ====
+	fs::metadata(path).is_ok()
+}
+
+
+// ==== Save tasks data block ====
 fn save_tasks(list: &TodoList) -> io::Result<()> {
     let file = File::create(FILE_PATH)?;
     serde_json::to_writer_pretty(file, &list.tasks)?;
@@ -82,6 +104,7 @@ enum Commands {
     List,
     Done { id: u32 },
     Delete { id: u32 },
+    Config { lang: String },
 }
 
 // Add Translator
@@ -125,6 +148,20 @@ fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> boo
                 false
             }
         },
+        Commands::Config { lang } => {
+            if locale_exists(&lang) {
+                let mut new_cfg = AppConfig::default();
+                new_cfg.language = lang.clone();
+                if confy::store("rpi_todo", None, new_cfg).is_ok() {
+                    println!("{}", t.tr("lang-changed", &[("lang", &lang)]));
+                    println!("{}", t.tr("restart-hint", &[]));
+                    return true;
+                }
+            } else {
+                println!("{}", t.tr("error-lang-not-found", &[("lang", &lang)]).red());
+            }
+            false
+        },
     }
 }
 
@@ -151,6 +188,7 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
             "list" => Some(Commands::List),
             "done" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Done { id })),
             "delete" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Delete { id })),
+            "config" => arg_part.map(|l| Commands::Config { lang: l.to_string() }),
             "help" => { 
                 println!("{}", t.tr("help-text", &[])); 
                 None 
@@ -172,11 +210,14 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
 }
 
 fn main() -> io::Result<()> {
+
+	let cfg: AppConfig = confy::load("rpi_todo", None).unwrap_or_default();
+
     let cli = Cli::parse();
     let mut list = load_tasks()?;
     
     // Right now use "ru" local for tests
-    let translator = Translator::new("ru");
+    let translator = Translator::new(&cfg.language);
 
     match cli.command {
         Some(cmd) => {

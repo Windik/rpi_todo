@@ -8,3 +8,6 @@ status-pending = ⏳ Offen
 error-not-found = Aufgabe wurde nicht gefunden.
 error-unknown-cmd = Unbekannter Befehl: {$cmd}.
 help-text = Verfügbare Befehle: add, list, done, delete, exit.
+lang-changed = Sprache auf {$lang} geändert.
+restart-hint = Bitte starten Sie das Programm neu, um die Änderungen zu übernehmen.
+error-lang-not-found = Fehler: Lokalisierung für "{$lang}" wurde im Ordner „locales“ nicht gefunden.
