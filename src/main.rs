@@ -1,14 +1,18 @@
+mod error;
+
 use std::io;
 use std::io::{BufReader, Write};
 use std::fs;
 use std::fs::File;
 
 use rpi_todo::tasks;
-use tasks::TodoList;
+use tasks::{TodoList, Task};
 use clap::{Parser, Subcommand};
 use colored::*;
 use fluent_templates::static_loader;
 use serde::{Serialize, Deserialize};
+
+use crate::error::TodoError;
 
 const FILE_PATH: &str = "tasks.json";
 
@@ -71,23 +75,16 @@ fn locale_exists(lang: &str) -> bool {
 
 
 // ==== Save tasks data block ====
-fn save_tasks(list: &TodoList) -> io::Result<()> {
+fn save_tasks(list: &TodoList) -> Result<(), TodoError> { 
     let file = File::create(FILE_PATH)?;
     serde_json::to_writer_pretty(file, &list.tasks)?;
     Ok(())
 }
 
-fn load_tasks() -> io::Result<TodoList> {
-    let file = File::open(FILE_PATH);
-    let f = match file {
-        Ok(f) => f,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(TodoList::new()),
-        Err(e) => return Err(e),
-    };
-    let reader = BufReader::new(f);
-    let tasks_vec = serde_json::from_reader(reader)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    Ok(TodoList { tasks: tasks_vec })
+fn load_tasks() -> Result<Vec<Task>, TodoError> {
+    let file = File::open(FILE_PATH)?;
+    let tasks = serde_json::from_reader(file)?;
+    Ok(tasks)
 }
 
 #[derive(Parser)]
@@ -209,14 +206,15 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
     }
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), TodoError> {
 
-	let cfg: AppConfig = confy::load("rpi_todo", None).unwrap_or_default();
-
-    let cli = Cli::parse();
-    let mut list = load_tasks()?;
+	let cfg: AppConfig = confy::load("rpi_todo", None)?; 
     
-    // Right now use "ru" local for tests
+    let cli = Cli::parse();
+    
+    let mut list_tasks = load_tasks().unwrap_or_else(|_| Vec::new());
+    let mut list = TodoList { tasks: list_tasks };
+
     let translator = Translator::new(&cfg.language);
 
     match cli.command {
