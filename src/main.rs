@@ -211,9 +211,9 @@ fn main() -> Result<(), TodoError> {
 	let cfg: AppConfig = confy::load("rpi_todo", None)?; 
     
     let cli = Cli::parse();
-    
-    let mut list_tasks = load_tasks().unwrap_or_else(|_| Vec::new());
-    let mut list = TodoList { tasks: list_tasks };
+
+	let tasks_vec = load_tasks().unwrap_or_else(|_| Vec::new());
+    let mut list = TodoList { tasks: tasks_vec };
 
     let translator = Translator::new(&cfg.language);
 
