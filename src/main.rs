@@ -1,7 +1,7 @@
 mod error;
 
 use std::io;
-use std::io::{BufReader, Write};
+use std::io::Write;
 use std::fs;
 use std::fs::File;
 
@@ -105,12 +105,12 @@ enum Commands {
 }
 
 // Add Translator
-fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> bool {
+fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> Result<bool, TodoError> {
     match command {
         Commands::Add { title } => {
             list.add_task(title.clone());
             println!("{}", t.tr("task-added", &[("title", &title)]));
-            true
+            Ok(true)
         },
         Commands::List => {
             if list.tasks.is_empty() {
@@ -123,41 +123,41 @@ fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> boo
                     println!("{}. {} - [{}] {}", task.id, date, status, task.title.bold());
                 }
             }
-            false
+            Ok(false)
         },
         Commands::Delete { id } => {
-            let id_str = id.to_string();
             if list.delete_task(id) {
+            	let id_str = id.to_string();
                 println!("{}", t.tr("task-deleted", &[("id", &id_str)]));
-                true
+                Ok(true)
             } else {
-                println!("{}", t.tr("error-not-found", &[]).red());
-                false
+                Err(TodoError::TaskNotFound(id))
             }
         },
         Commands::Done { id } => {
-            let id_str = id.to_string();
             if list.complete_task(id) {
+            	let id_str = id.to_string();
                 println!("{}", t.tr("task-completed", &[("id", &id_str)]));
-                true
+                Ok(true)
             } else {
-                println!("{}", t.tr("error-not-found", &[]).red());
-                false
+                Err(TodoError::TaskNotFound(id))
             }
         },
         Commands::Config { lang } => {
             if locale_exists(&lang) {
-                let mut new_cfg = AppConfig::default();
-                new_cfg.language = lang.clone();
-                if confy::store("rpi_todo", None, new_cfg).is_ok() {
-                    println!("{}", t.tr("lang-changed", &[("lang", &lang)]));
-                    println!("{}", t.tr("restart-hint", &[]));
-                    return true;
-                }
-            } else {
-                println!("{}", t.tr("error-lang-not-found", &[("lang", &lang)]).red());
-            }
-            false
+		let mut new_cfg = AppConfig::default();
+		new_cfg.language = lang.clone();
+		// Используем ?, так как store возвращает Result
+		confy::store("rpi_todo", None, new_cfg)
+		    .map_err(TodoError::Config)?; 
+
+
+		println!("{}", t.tr("lang-changed", &[("lang", &lang)]));
+		println!("{}", t.tr("restart-hint", &[]));
+		Ok(true)
+	    } else {
+		Err(TodoError::LocaleNotFound(lang))
+	    }
         },
     }
 }
@@ -197,12 +197,20 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
         };
 
         if let Some(cmd) = command_to_run {
-            if handle_command(cmd, list, t) {
-                if let Err(e) = save_tasks(list) {
-                    eprintln!("Error saving tasks: {}", e);
-                }
-            }
-        }
+	    match handle_command(cmd, list, t) {
+		Ok(should_save) => {
+		    if should_save {
+		        if let Err(e) = save_tasks(list) {
+		            eprintln!("Error saving tasks: {}", e);
+		        }
+		    }
+		}
+		Err(e) => {
+		    // Печатаем ошибку и продолжаем цикл, а не выходим из программы
+		    eprintln!("{}", e.to_string().red());
+		}
+	    }
+	}
     }
 }
 
@@ -219,11 +227,11 @@ fn main() -> Result<(), TodoError> {
 
     match cli.command {
         Some(cmd) => {
-            if handle_command(cmd, &mut list, &translator) {
-                save_tasks(&list)?;
-            }
-        }
-        None => active_mod(&mut list, &translator),
+		if handle_command(cmd, &mut list, &translator)? {
+		    save_tasks(&list)?;
+		}
+	    }
+	    None => active_mod(&mut list, &translator),
     }
 
     Ok(())
