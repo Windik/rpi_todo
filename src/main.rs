@@ -108,7 +108,7 @@ enum Commands {
 fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> Result<bool, TodoError> {
     match command {
         Commands::Add { title } => {
-            list.add_task(title.clone());
+            list.add_task(title.clone(), None);
             println!("{}", t.tr("task-added", &[("title", &title)]));
             Ok(true)
         },
