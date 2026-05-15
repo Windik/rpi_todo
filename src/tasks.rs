@@ -7,6 +7,7 @@ pub struct Task {
 	pub title: String,
 	pub completed: bool,
 	pub created_at: DateTime<Local>,
+	pub tags: Vec<String>,
 }
 
 pub struct TodoList {
@@ -32,18 +33,29 @@ impl TodoList {
 	/// ```
 	/// use rpi_todo::tasks::TodoList;
 	/// let mut list = TodoList::new();
-	/// list.add_task("Example".to_string());
+	/// list.add_task("Example".to_string(), None);
 	/// assert_eq!(list.tasks.len(), 1);
 	/// assert_eq!(list.tasks[0].title, "Example");
 	/// ```
-	pub fn add_task(&mut self, title: String) {
+	pub fn add_task(&mut self, title: String, arg_tags: Option<String>) {
 		let id = self.tasks.last().map_or(1, |t| t.id + 1);
 
+		let tags = match arg_tags {
+			Some(tags_str) => {
+				tags_str.replace("--tags", "")
+					.split_whitespace()
+					.map(String::from)
+					.collect()
+			},
+			None => vec!["default".to_string()],
+		};
+		
 		let new_task = Task {
 			id,
 			title,
 			completed: false,
 			created_at: Local::now(),
+			tags,
 		};
 
 		self.tasks.push(new_task);
@@ -94,20 +106,24 @@ mod tests {
 	#[test]
 	fn test_add_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("Test".to_string());
+		list.add_task("Test".to_string(), None);
 		assert_eq!(list.tasks.len(), 1);
 		assert_eq!(list.tasks[0].title, "Test");
+		assert_eq!(list.tasks[0].tags, vec!["default".to_string()]);
+	}
+
+	#[test]
+	fn test_add_task_with_tags() {
+		let mut list = TodoList::new();
+		list.add_task("Test".to_string(), Some("--tags work urgent".to_string()));
+		assert_eq!(list.tasks[0].tags, vec!["work".to_string(), "urgent".to_string()]);
 	}
 
 	#[test]
 	fn test_complete_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("Complete Test".to_string());
-
+		list.add_task("Complete Test".to_string(), None);
 		let success = list.complete_task(1);
-
 		assert!(success);
 		assert!(list.tasks[0].completed);
 	}
@@ -115,11 +131,8 @@ mod tests {
 	#[test]
 	fn test_delete_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("To delete".to_string());
-
+		list.add_task("To delete".to_string(), None);
 		let success = list.delete_task(1);
-
 		assert!(success);
 		assert_eq!(list.tasks.len(), 0);
 	}
@@ -127,24 +140,18 @@ mod tests {
 	#[test]
 	fn test_delete_non_existent_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("Delete non-existent task".to_string());
-
+		list.add_task("Delete non-existent task".to_string(), None);
 		let success = list.delete_task(2);
-
-		assert!(success == false);
+		assert!(!success);
 	}
 
 	#[test]
 	fn test_delete_middle_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("Task 1".to_string());
-		list.add_task("Task 2".to_string());
-		list.add_task("Task 3".to_string());
-
+		list.add_task("Task 1".to_string(), None);
+		list.add_task("Task 2".to_string(), None);
+		list.add_task("Task 3".to_string(), None);
 		let success = list.delete_task(2);
-
 		assert!(success);
 		assert_eq!(list.tasks.len(), 2);
 		assert_eq!(list.tasks[0].id, 1);
@@ -154,12 +161,9 @@ mod tests {
 	#[test]
 	fn test_complete_completed_task() {
 		let mut list = TodoList::new();
-
-		list.add_task("Task to complete".to_string());
-
+		list.add_task("Task to complete".to_string(), None);
 		let success = list.complete_task(1);
 		let try_to_success = list.complete_task(1);
-
 		assert!(success);
 		assert!(try_to_success);
 		assert!(list.tasks[0].completed);
