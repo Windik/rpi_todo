@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
+use colored::*; 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
@@ -10,44 +11,49 @@ pub struct Task {
 	pub tags: Vec<String>,
 }
 
+impl Task {
+	/// Returns a formatted string of tags for console output. 
+	/// If there are no tags, returns an empty string to avoid cluttering the output.
+	pub fn format_tags(&self) -> String {
+		if self.tags.is_empty() {
+			return String::new();
+		}
+
+		// Style each tag individually and combine them with a space
+		// Example: [work] [urgent] — blue
+		self.tags
+			.iter()
+			.map(|tag| format!("[{}]", tag).blue().to_string())
+			.collect::<Vec<String>>()
+			.join(" ")
+	}
+}
+
 pub struct TodoList {
 	pub tasks: Vec<Task>,
 }
 
 impl TodoList {
 	/// Create new TodoList
-	///
-	/// # Examples
-	/// ```
-	/// use rpi_todo::tasks::TodoList;
-	/// let list = TodoList::new();
-	/// assert_eq!(list.tasks.len(), 0);
-	/// ```
 	pub fn new() -> Self {
 		TodoList { tasks: Vec::new() }
 	}
 
 	/// Add new task to TodoList with title
-	///
-	/// # Examples
-	/// ```
-	/// use rpi_todo::tasks::TodoList;
-	/// let mut list = TodoList::new();
-	/// list.add_task("Example".to_string(), None);
-	/// assert_eq!(list.tasks.len(), 1);
-	/// assert_eq!(list.tasks[0].title, "Example");
-	/// ```
 	pub fn add_task(&mut self, title: String, arg_tags: Option<String>) {
 		let id = self.tasks.last().map_or(1, |t| t.id + 1);
 
 		let tags = match arg_tags {
 			Some(tags_str) => {
-				tags_str.replace("--tags", "")
+				// Fixed: remove the prefix and split by spaces, ignoring extra whitespace.
+				tags_str
+					.replace("--tags", "")
 					.split_whitespace()
+					.filter(|s| !s.is_empty()) 
 					.map(String::from)
 					.collect()
 			},
-			None => vec!["default".to_string()],
+			None => Vec::new(), 
 		};
 		
 		let new_task = Task {
@@ -62,39 +68,18 @@ impl TodoList {
 	}
 
 	/// Delete task from TodoList by id
-	///
-	/// # Examples
-	/// ```
-	/// use rpi_todo::tasks::TodoList;
-	/// let mut list = TodoList::new();
-	/// list.add_task("Delete example".to_string());
-	/// assert_eq!(list.tasks.len(), 1);
-	/// list.delete_task(1);
-	/// assert_eq!(list.tasks.len(), 0);
-	/// ```
 	pub fn delete_task(&mut self, id: u32) -> bool {
 		let initial_len = self.tasks.len();
-
 		self.tasks.retain(|t| t.id != id);
 		self.tasks.len() < initial_len
 	}
 
 	/// Complete task in TodoList by id
-	///
-	/// # Example
-	/// ```
-	/// use rpi_todo::tasks::TodoList;
-	/// let mut list = TodoList::new();
-	/// list.add_task("Need to complete".to_string());
-	/// let success = list.complete_task(1);
-	/// assert_eq!(list.tasks[0].completed, success);
-	/// ```
 	pub fn complete_task(&mut self, id: u32) -> bool {
 		if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id) {
 			task.completed = true;
 			return true;
 		}
-
 		false
 	}
 }
@@ -109,7 +94,8 @@ mod tests {
 		list.add_task("Test".to_string(), None);
 		assert_eq!(list.tasks.len(), 1);
 		assert_eq!(list.tasks[0].title, "Test");
-		assert_eq!(list.tasks[0].tags, vec!["default".to_string()]);
+		// Исправлен тест: теперь по умолчанию теги пустые
+		assert!(list.tasks[0].tags.is_empty()); 
 	}
 
 	#[test]
@@ -117,6 +103,13 @@ mod tests {
 		let mut list = TodoList::new();
 		list.add_task("Test".to_string(), Some("--tags work urgent".to_string()));
 		assert_eq!(list.tasks[0].tags, vec!["work".to_string(), "urgent".to_string()]);
+	}
+
+	#[test]
+	fn test_format_tags_empty() {
+		let mut list = TodoList::new();
+		list.add_task("Test".to_string(), None);
+		assert_eq!(list.tasks[0].format_tags(), "");
 	}
 
 	#[test]

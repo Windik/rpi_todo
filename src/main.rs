@@ -97,7 +97,12 @@ struct Cli {
 
 #[derive(Subcommand, Clone)]
 enum Commands {
-    Add { title: String },
+    // Modified: Add optional tags to the clap CLI
+    Add { 
+        title: String,
+        #[arg(long)]
+        tags: Option<String>,
+    },
     List,
     Done { id: u32 },
     Delete { id: u32 },
@@ -107,8 +112,9 @@ enum Commands {
 // Add Translator
 fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> Result<bool, TodoError> {
     match command {
-        Commands::Add { title } => {
-            list.add_task(title.clone(), None);
+        Commands::Add { title, tags } => {
+            // Modified: Tags are now correctly passed to the add method.
+            list.add_task(title.clone(), tags);
             println!("{}", t.tr("task-added", &[("title", &title)]));
             Ok(true)
         },
@@ -120,7 +126,16 @@ fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> Res
                     let status_text = if task.completed { t.tr("status-done", &[]) } else { t.tr("status-pending", &[]) };
                     let status = if task.completed { status_text.green() } else { status_text.yellow() };
                     let date = task.created_at.format("%Y-%m-%d %H:%M").to_string().dimmed();
-                    println!("{}. {} - [{}] {}", task.id, date, status, task.title.bold());
+                    
+                    // Modified: Get the formatted tag string from tasks.rs
+                    let tags_output = task.format_tags();
+                    
+                    // Output the string, appending tags to the very end (if tags exist, a space will be inserted before them)
+                    if tags_output.is_empty() {
+                        println!("{}. {} - [{}] {}", task.id, date, status, task.title.bold());
+                    } else {
+                        println!("{}. {} - [{}] {} {}", task.id, date, status, task.title.bold(), tags_output);
+                    }
                 }
             }
             Ok(false)
@@ -147,10 +162,8 @@ fn handle_command(command: Commands, list: &mut TodoList, t: &Translator) -> Res
             if locale_exists(&lang) {
 		let mut new_cfg = AppConfig::default();
 		new_cfg.language = lang.clone();
-		// Используем ?, так как store возвращает Result
 		confy::store("rpi_todo", None, new_cfg)
 		    .map_err(TodoError::Config)?; 
-
 
 		println!("{}", t.tr("lang-changed", &[("lang", &lang)]));
 		println!("{}", t.tr("restart-hint", &[]));
@@ -181,7 +194,17 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
         let arg_part = parts.get(1).copied();
 
         let command_to_run = match cmd_part {
-            "add" => arg_part.map(|title| Commands::Add { title: title.to_string() }),
+            "add" => arg_part.map(|raw_args| {
+				// Modified: Smart parsing for interactive mode. 
+				// Check if the user entered `--tags` within the `add` string.
+                if let Some(idx) = raw_args.find("--tags") {
+                    let title = raw_args[..idx].trim().to_string();
+                    let tags = raw_args[idx..].to_string(); // Pass along with the prefix to tasks.rs
+                    Commands::Add { title, tags: Some(tags) }
+                } else {
+                    Commands::Add { title: raw_args.to_string(), tags: None }
+                }
+            }),
             "list" => Some(Commands::List),
             "done" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Done { id })),
             "delete" => arg_part.and_then(|id| id.parse().ok().map(|id| Commands::Delete { id })),
@@ -206,7 +229,6 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
 		    }
 		}
 		Err(e) => {
-		    // Печатаем ошибку и продолжаем цикл, а не выходим из программы
 		    eprintln!("{}", e.to_string().red());
 		}
 	    }
@@ -215,14 +237,10 @@ fn active_mod(list: &mut TodoList, t: &Translator) {
 }
 
 fn main() -> Result<(), TodoError> {
-
-	let cfg: AppConfig = confy::load("rpi_todo", None)?; 
-    
+    let cfg: AppConfig = confy::load("rpi_todo", None)?; 
     let cli = Cli::parse();
-
-	let tasks_vec = load_tasks().unwrap_or_else(|_| Vec::new());
+    let tasks_vec = load_tasks().unwrap_or_else(|_| Vec::new());
     let mut list = TodoList { tasks: tasks_vec };
-
     let translator = Translator::new(&cfg.language);
 
     match cli.command {
