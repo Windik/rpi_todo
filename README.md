@@ -42,6 +42,22 @@ cargo run
 ```
 Inside the interactive shell, you can use `add`, `list`, `done`, `delete`, and the `config` command.
 
+### 🏷️ Working with Tags:
+You can categorize your tasks by adding `--tags` followed by space-separated words at the end of the `add` command. This works in both interactive and direct CLI modes.
+
+* **Interactive Mode Example:**
+  ```text
+  > add Buy groceries --tags shopping home
+  ```
+* **Direct CLI Example:**
+  ```bash
+  cargo run -- add "Finish Rust project" --tags work urgent
+  ```
+* **Visual Output:**
+  When you run `list`, tags are automatically formatted and highlighted in **blue** color at the end of each task line.
+
+---
+
 ## 🌍 Localization & Config
 
 The application remembers your settings across sessions.
